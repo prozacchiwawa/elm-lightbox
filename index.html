@@ -1,0 +1,15 @@
+<html>
+<head>
+</head>
+<body style='margin: 0;'>
+    <div id='app' style='width: 100vw; height: 100vh;'>
+    </div>
+    <script src='out/index.js'></script>
+    <script src='out/support.js'></script>
+    <script>
+        console.log(Elm);
+        var app = document.getElementById('app');
+        var main = Elm.Main.embed(app, { screenWidth: window.innerWidth });
+    </script>
+</body>
+</html>
