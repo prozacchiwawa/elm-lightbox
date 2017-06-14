@@ -10,7 +10,10 @@ import Css.Namespace exposing (namespace)
 import Mouse
 -- import Json.Decode as JD
 import Json.Encode as JE
+import Return
 import Window
+
+import Images
 
 type alias Flags =
     { screenWidth : Float }
@@ -26,9 +29,11 @@ type Msg
     | SetDivider (Mouse.Position, Mouse.Position)
     | SelectView SelectedView
     | SetLayout String
+    | ImagesMsg Images.Msg
 
-type alias Model =
-    { windowWidth : Float
+type alias Model slice =
+    { slice
+    | windowWidth : Float
     , screenWidth : Float
     , draggingDivider : Maybe Mouse.Position
     , at : Mouse.Position
@@ -48,6 +53,7 @@ type CssClasses
     | WindowView
     | Divider
     | Fill
+    | SelView
     | SelTab
     | FillText
 
@@ -92,6 +98,10 @@ css = (stylesheet << namespace "lightbox")
         , fontFamily sansSerif
         , fontSize (vmin 5)
         , displayFlex
+        , backgroundColor (rgb 192 192 192)
+        ]
+    , class SelTab
+        [ backgroundColor (rgb 255 255 255)
         ]
     , class Tree
         [ width (pct 30)
@@ -115,7 +125,7 @@ css = (stylesheet << namespace "lightbox")
         , height (pct 100)
         , display none
         ]
-    , class SelTab
+    , class SelView
         [ display block ]
     , class FillText
         [ width (pct 100)
@@ -130,19 +140,20 @@ c = Html.CssHelpers.withNamespace "lightbox"
 cssdata : String
 cssdata = (Css.compile [css]).css
 
-init : Flags -> (Model, Cmd Msg)
+init : Flags -> (Model Images.Model, Cmd Msg)
 init flags =
     { windowWidth = 0.7
     , screenWidth = flags.screenWidth
     , draggingDivider = Nothing
     , at = Mouse.Position 0 0
-    , rawLayout = "<div></div>"
+    , rawLayout = "<div style='display: flex; align-items: center; justify-content: center;'>Edit layout tab to change ...</div>"
     , resolutions = []
     , viewScale = 1.0
-    , selectedView = Image
+    , selectedView = Preview
+    , images = Images.init
     } ! []
 
-update : Msg -> Model -> (Model, Cmd Msg)
+update : Msg -> (Model Images.Model) -> (Model Images.Model, Cmd Msg)
 update msg model =
     case msg of
         StartDivDrag -> { model | draggingDivider = Just model.at } ! []
@@ -164,9 +175,12 @@ update msg model =
             { model | selectedView = v } ! []
         SetLayout l ->
             { model | rawLayout = l } ! []
+        ImagesMsg msg ->
+            Images.update msg model
+            |> Return.mapCmd ImagesMsg
         _ -> model ! []
 
-view : Model -> Html Msg
+view : (Model Images.Model) -> Html Msg
 view model =
     let dividerAt =
         case model.draggingDivider of
@@ -185,28 +199,29 @@ view model =
     div [ c.class [App], onMouseUp GeneralStopDrag ]
         [ div [ c.class [WindowContainer], HA.style [("width", pct dividerAt)] ]
             [ div [ c.class [WindowTabCntr] ]
-                [ div [ c.class [WindowTab], onClick (SelectView Image) ] [ Html.text "Image" ]
-                , div [ c.class [WindowTab], onClick (SelectView Layout) ] [ Html.text "Layout" ]
-                , div [ c.class [WindowTab], onClick (SelectView Preview) ] [ Html.text "Preview" ]
+                [ div [ addIfSelected Image [SelTab] [WindowTab], onClick (SelectView Image) ] [ Html.text "Image" ]
+                , div [ addIfSelected Layout [SelTab] [WindowTab], onClick (SelectView Layout) ] [ Html.text "Layout" ]
+                , div [ addIfSelected Preview [SelTab] [WindowTab], onClick (SelectView Preview) ] [ Html.text "Preview" ]
                 ]
             , div [ c.class [WindowView] ]
-                [ div [ addIfSelected Image [SelTab] [Fill] ] [ Html.text "Image" ]
-                , div [ addIfSelected Layout [SelTab] [Fill] ]
+                [ div [ addIfSelected Image [SelView] [Fill] ] [ Images.view model |> Html.map ImagesMsg ]
+                , div [ addIfSelected Layout [SelView] [Fill] ]
                     [ Html.textarea [ c.class [FillText], HA.property "value" (JE.string model.rawLayout), onInput SetLayout ] []
                     ]
-                , div [ addIfSelected Preview [SelTab] [Fill], HA.property "innerHTML" (JE.string model.rawLayout) ] []
+                , div [ addIfSelected Preview [SelView] [Fill], HA.property "innerHTML" (JE.string model.rawLayout) ] []
                 ]
             ]
         , div [ c.class [Divider], onMouseDown StartDivDrag ] []
         , div [ c.class [Tree] ] [ Html.text "tree" ]
         , Html.node "style" [] [ Html.text cssdata ]
+        , Html.node "style" [] [ Html.text Images.cssdata ]
         ]
 
-main : Program Flags Model Msg
+main : Program Flags (Model Images.Model) Msg
 main =
     Html.programWithFlags
         { init = init
         , update = update
         , view = view
-        , subscriptions = \_ -> Sub.batch [Mouse.moves MouseMove, Window.resizes WindowSize]
+        , subscriptions = \m -> Sub.batch [Mouse.moves MouseMove, Window.resizes WindowSize, Sub.map ImagesMsg (Images.subs m)]
         }
