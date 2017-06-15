@@ -74,9 +74,7 @@ updateImages msg model =
         ImageRead data ->
             { model | showing = Just (data.filename, data.contents) } ! []
         ImageLoaded v ->
-            case model.showing of
-                Just s -> { model | images = Dict.insert v.name v model.images, showing = Nothing } ! []
-                Nothing -> model ! []
+            { model | images = Dict.insert v.name v model.images, showing = Nothing } ! []
         SelectImage s ->
             { model | imagesel = s.name } ! []
         _ -> model ! []

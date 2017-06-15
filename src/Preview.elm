@@ -54,6 +54,7 @@ viewPreview model =
                 , ("width", (toString model.useImage.size.width) ++ "px")
                 , ("height", (toString model.useImage.size.height) ++ "px")
                 , ("z-index", "2")
+                , ("border", "1px solid black")
                 ]
             , HA.property "innerHTML" (JE.string model.rawLayout)
             ] []

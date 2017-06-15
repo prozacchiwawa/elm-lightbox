@@ -42,6 +42,18 @@
           // Connect our FileReader with the file that was selected in our `input` node.
           reader.readAsDataURL(file);
         });
+
+        app.ports.storeState.subscribe(function(data) {
+          console.log('storeState',data);
+          localStorage.setItem('save',JSON.stringify(data));
+        });
+        app.ports.getState.subscribe(function() {
+          var saved = localStorage.getItem('save');
+          console.log('getState',saved);
+          if (saved && saved != '') {
+            app.ports.haveState.send(JSON.parse(saved));
+          }
+        })
     </script>
 </body>
 </html>
