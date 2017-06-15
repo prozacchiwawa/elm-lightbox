@@ -128,6 +128,7 @@ css = (stylesheet << namespace "lightbox")
         [ width (pct 100)
         , height (pct 100)
         , display none
+        , position relative
         ]
     , class SelView
         [ display block ]

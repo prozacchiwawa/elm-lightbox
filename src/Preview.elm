@@ -38,10 +38,16 @@ update msg model =
 viewPreview : PreviewModel -> Html Msg
 viewPreview model =
     Html.div
-        []
+        [ HA.style
+            [ ("position", "relative")
+            , ("overflow", "hidden")
+            , ("width", "100%")
+            , ("height", "100%")
+            ]
+        ]
         [ Html.div
             [ HA.style
-                [ ("position", "absolute")
+                [ ("position", "relative")
                 , ("left", "50%")
                 , ("top", "50%")
                 , ("transform", "translate(-50%,-50%)")
