@@ -12,29 +12,24 @@ import Json.Decode as JD
 import Return
 import Window
 
+import ImageData
 import Ports
-
-type alias ImageDesc =
-    { size : Window.Size
-    , name : String
-    , data : String
-    }
 
 type Msg
     = NoOp
     | ImageRead Ports.ImagePortData
     | ImageSelected
-    | ImageLoaded ImageDesc
-    | SelectImage String
+    | ImageLoaded ImageData.ImageDesc
+    | SelectImage ImageData.ImageDesc
 
 type alias ImagesModel =
-    { images : Dict String ImageDesc
+    { images : Dict String ImageData.ImageDesc
     , showing : Maybe (String,String)
     , imagesel : String
     }
 
-type alias Model =
-    { images : ImagesModel }
+type alias Model a =
+    { a | images : ImagesModel }
 
 type CssClasses
     = PreviewRow
@@ -65,9 +60,10 @@ cssdata = (Css.compile [css]).css
 
 init : ImagesModel
 init =
-    { images = Dict.empty
+    let ei = ImageData.emptyImage in
+    { images = Dict.insert ei.name ei Dict.empty
     , showing = Nothing
-    , imagesel = ""
+    , imagesel = ei.name
     }
 
 updateImages : Msg -> ImagesModel -> (ImagesModel, Cmd Msg)
@@ -82,7 +78,7 @@ updateImages msg model =
                 Just s -> { model | images = Dict.insert v.name v model.images, showing = Nothing } ! []
                 Nothing -> model ! []
         SelectImage s ->
-            { model | imagesel = s } ! []
+            { model | imagesel = s.name } ! []
         _ -> model ! []
 
 update : Msg -> { model | images : ImagesModel } -> ({ model | images : ImagesModel }, Cmd Msg)
@@ -90,9 +86,9 @@ update msg model =
     updateImages msg model.images
     |> Return.map (\i -> { model | images = i })
 
-decodeImageLoad : String -> String -> JD.Decoder ImageDesc
+decodeImageLoad : String -> String -> JD.Decoder ImageData.ImageDesc
 decodeImageLoad name data =
-    JD.map3 ImageDesc
+    JD.map3 ImageData.ImageDesc
         (JD.map2 Window.Size
             (JD.at ["target","naturalWidth"] JD.int)
             (JD.at ["target","naturalHeight"] JD.int)
@@ -100,7 +96,7 @@ decodeImageLoad name data =
         (JD.succeed name)
         (JD.succeed data)
 
-imagePreview : ImagesModel -> (String,ImageDesc) -> Html Msg
+imagePreview : ImagesModel -> (String,ImageData.ImageDesc) -> Html Msg
 imagePreview model (_,ent) =
     let whRatio = (toFloat ent.size.width) / (toFloat ent.size.height) in
     let width = if whRatio >= 1.0 then 10.0 else (whRatio * 10.0) in
@@ -108,7 +104,7 @@ imagePreview model (_,ent) =
     let vmin v = (toString v) ++ "vmin" in
     Html.div
         [ c.class [if model.imagesel == ent.name then SelPrevRow else PreviewRow]
-        , HE.onClick (SelectImage ent.name) ]
+        , HE.onClick (SelectImage ent) ]
         [ Html.img [HA.src ent.data, HA.style [("width", vmin width), ("height", vmin height)]] []
         , Html.text ent.name
         ]

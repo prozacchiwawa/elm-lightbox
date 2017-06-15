@@ -14,6 +14,7 @@ import Return
 import Window
 
 import Images
+import Preview
 
 type alias Flags =
     { screenWidth : Float }
@@ -30,8 +31,9 @@ type Msg
     | SelectView SelectedView
     | SetLayout String
     | ImagesMsg Images.Msg
+    | PreviewMsg Preview.Msg
 
-type alias Model slice =
+type alias ModelW slice =
     { slice
     | windowWidth : Float
     , screenWidth : Float
@@ -42,6 +44,8 @@ type alias Model slice =
     , viewScale : Float
     , selectedView : SelectedView
     }
+
+type alias Model = ModelW (Images.Model (Preview.Model {}))
 
 type CssClasses
     = App
@@ -140,20 +144,22 @@ c = Html.CssHelpers.withNamespace "lightbox"
 cssdata : String
 cssdata = (Css.compile [css]).css
 
-init : Flags -> (Model Images.Model, Cmd Msg)
+init : Flags -> (Model, Cmd Msg)
 init flags =
+    let rl = "<div style='display: flex; align-items: center; justify-content: center;'>Edit layout tab to change ...</div>" in
     { windowWidth = 0.7
     , screenWidth = flags.screenWidth
     , draggingDivider = Nothing
     , at = Mouse.Position 0 0
-    , rawLayout = "<div style='display: flex; align-items: center; justify-content: center;'>Edit layout tab to change ...</div>"
+    , rawLayout = rl
     , resolutions = []
     , viewScale = 1.0
     , selectedView = Preview
     , images = Images.init
+    , preview = Preview.init rl
     } ! []
 
-update : Msg -> (Model Images.Model) -> (Model Images.Model, Cmd Msg)
+update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
         StartDivDrag -> { model | draggingDivider = Just model.at } ! []
@@ -174,13 +180,21 @@ update msg model =
         SelectView v ->
             { model | selectedView = v } ! []
         SetLayout l ->
-            { model | rawLayout = l } ! []
+            Preview.update (Preview.SetLayout l) { model | rawLayout = l }
+            |> Return.mapCmd PreviewMsg
+        ImagesMsg (Images.SelectImage i) ->
+            Images.update (Images.SelectImage i) model
+            |> Return.mapCmd ImagesMsg
+            |> Return.andThen (update (PreviewMsg (Preview.UseImage i)))
         ImagesMsg msg ->
             Images.update msg model
             |> Return.mapCmd ImagesMsg
+        PreviewMsg msg ->
+            Preview.update msg model
+            |> Return.mapCmd PreviewMsg
         _ -> model ! []
 
-view : (Model Images.Model) -> Html Msg
+view : Model -> Html Msg
 view model =
     let dividerAt =
         case model.draggingDivider of
@@ -208,7 +222,9 @@ view model =
                 , div [ addIfSelected Layout [SelView] [Fill] ]
                     [ Html.textarea [ c.class [FillText], HA.property "value" (JE.string model.rawLayout), onInput SetLayout ] []
                     ]
-                , div [ addIfSelected Preview [SelView] [Fill], HA.property "innerHTML" (JE.string model.rawLayout) ] []
+                , div [ addIfSelected Preview [SelView] [Fill] ]
+                    [ Preview.view model |> Html.map PreviewMsg
+                    ]
                 ]
             ]
         , div [ c.class [Divider], onMouseDown StartDivDrag ] []
@@ -217,7 +233,7 @@ view model =
         , Html.node "style" [] [ Html.text Images.cssdata ]
         ]
 
-main : Program Flags (Model Images.Model) Msg
+main : Program Flags Model Msg
 main =
     Html.programWithFlags
         { init = init
