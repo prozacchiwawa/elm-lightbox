@@ -3,7 +3,7 @@ module Main exposing (..)
 import Debug exposing (log)
 import Dict exposing (Dict)
 import Html exposing (Html, text, div, program)
-import Html.Events exposing (onClick, onMouseUp, onMouseDown, onInput)
+import Html.Events exposing (onClick, onMouseUp, onMouseDown, onInput, defaultOptions, onWithOptions)
 import Html.Attributes as HA
 import Css exposing (..)
 -- import Css.Elements exposing (body)
@@ -25,7 +25,7 @@ import Preview
 type alias Flags =
     { screenWidth : Float }
 
-type SelectedView = Image | Layout | Preview
+type SelectedView = Image | Layout
 
 type Msg
     = NoOp
@@ -77,7 +77,7 @@ css = (stylesheet << namespace "lightbox")
         , displayFlex
         ]
     , class WindowContainer
-        [ width (pct 70)
+        [ width (pct 39.5)
         , height (vh 100)
         , displayFlex
         , flexDirection column
@@ -94,6 +94,7 @@ css = (stylesheet << namespace "lightbox")
         , displayFlex
         , flexGrow (num 1)
         , flexShrink (num 0)
+        , borderTop3 (px 1) solid (rgb 0 0 0)
         ]
     , class WindowTabCntr
         [ width (pct 100)
@@ -102,27 +103,32 @@ css = (stylesheet << namespace "lightbox")
         , flexDirection row
         , flexGrow (num 0)
         , flexShrink (num 0)
+        , boxSizing borderBox
         ]
     , class WindowTab
-        [ width (pct 20)
-        , height (vmin 5)
+        [ height (vmin 6)
+        , marginLeft (vmin 2)
         , fontFamily sansSerif
         , fontSize (vmin 5)
         , displayFlex
-        , backgroundColor (rgb 192 192 192)
+        , flexDirection row
+        , backgroundColor (rgb 255 255 255)
+        , alignItems center
+        , justifyContent center
         ]
     , class SelTab
-        [ backgroundColor (rgb 255 255 255)
+        [ backgroundColor (rgb 192 192 192)
         ]
     , class Tree
-        [ width (pct 30)
+        [ width (pct 60)
         , height (vh 100)
         , displayFlex
         , flexGrow (num 1)
         , flexShrink (num 1)
         ]
     , class Divider
-        [ width (px 5)
+        [ width (pct 0.5)
+        , minWidth (px 4)
         , height (vh 100)
         , displayFlex
         , borderLeft3 (px 1) solid (rgb 255 255 255)
@@ -132,18 +138,21 @@ css = (stylesheet << namespace "lightbox")
         , backgroundColor (rgb 192 192 192)
         ]
     , class Fill
-        [ width (pct 100)
-        , height (pct 100)
-        , display none
+        [ display none
+        , width (pct 100)
         , position relative
+        , margin (px 0)
+        , boxSizing borderBox
         ]
     , class SelView
         [ display block ]
     , class FillText
         [ width (pct 100)
-        , height (pct 100)
+        , height (vh 90)
+        , maxHeight (vh 90)
         , boxSizing borderBox
         , border2 (px 2) inset
+        , margin (px 0)
         ]
     ]
 
@@ -211,7 +220,7 @@ init flags =
     , rawLayout = rl
     , resolutions = []
     , viewScale = 1.0
-    , selectedView = Preview
+    , selectedView = Layout
     , images = Images.init
     , preview = Preview.init rl
     } ! [LocalStorage.getState ()]
@@ -227,11 +236,13 @@ update msg model =
                     Nothing -> NoOp
             in
             update dragOp { model | draggingDivider = Nothing }
+            |> Return.andThen (update (PreviewMsg Preview.MouseUp))
         SetDivider (newAt, oldAt) ->
             let movePx = toFloat (newAt.x - oldAt.x) in
             { model | windowWidth = model.windowWidth + (movePx / model.screenWidth) } ! []
         MouseMove to ->
             { model | at = to } ! []
+            |> Return.andThen (update (PreviewMsg (Preview.MouseMove to)))
         WindowSize s ->
             { model | screenWidth = toFloat s.width } ! []
         SelectView v ->
@@ -248,6 +259,8 @@ update msg model =
             Images.update msg model
             |> Return.mapCmd ImagesMsg
             |> Return.andThen save
+        PreviewMsg Preview.MouseDown ->
+            update (PreviewMsg (Preview.MouseDownPosition model.at)) model
         PreviewMsg msg ->
             Preview.update msg model
             |> Return.mapCmd PreviewMsg
@@ -257,6 +270,8 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
+    let defOptions = defaultOptions in
+    let preventDef = { defOptions | preventDefault = True, stopPropagation = True } in
     let dividerAt =
         case model.draggingDivider of
             Just at ->
@@ -276,20 +291,17 @@ view model =
             [ div [ c.class [WindowTabCntr] ]
                 [ div [ addIfSelected Image [SelTab] [WindowTab], onClick (SelectView Image) ] [ Html.text "Image" ]
                 , div [ addIfSelected Layout [SelTab] [WindowTab], onClick (SelectView Layout) ] [ Html.text "Layout" ]
-                , div [ addIfSelected Preview [SelTab] [WindowTab], onClick (SelectView Preview) ] [ Html.text "Preview" ]
                 ]
             , div [ c.class [WindowView] ]
                 [ div [ addIfSelected Image [SelView] [Fill] ] [ Images.view model |> Html.map ImagesMsg ]
                 , div [ addIfSelected Layout [SelView] [Fill] ]
                     [ Html.textarea [ c.class [FillText], HA.property "value" (JE.string model.rawLayout), onInput SetLayout ] []
                     ]
-                , div [ addIfSelected Preview [SelView] [Fill] ]
-                    [ Preview.view model |> Html.map PreviewMsg
-                    ]
                 ]
             ]
-        , div [ c.class [Divider], onMouseDown StartDivDrag ] []
-        , div [ c.class [Tree] ] [ Html.text "tree" ]
+        , div [ c.class [Divider], onWithOptions "mousedown" preventDef (JD.succeed StartDivDrag) ] []
+        , div [ c.class [Tree] ]
+            [ div [ c.class [Fill, SelView] ] [ Preview.view model |> Html.map PreviewMsg ] ]
         , Html.node "style" [] [ Html.text cssdata ]
         , Html.node "style" [] [ Html.text Images.cssdata ]
         ]
