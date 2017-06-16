@@ -13,6 +13,7 @@ import ImageData
 
 type alias PreviewModel =
     { rawLayout : String
+    , rawCSS : String
     , useImage : ImageData.ImageDesc
     , imageOpacity : Float
     , imageScale : Float
@@ -23,6 +24,7 @@ type alias PreviewModel =
 
 type Msg
     = SetLayout String
+    | SetCSS String
     | UseImage ImageData.ImageDesc
     | SetImageO Float
     | SetImageS Float
@@ -36,9 +38,10 @@ type alias Model a =
     | preview : PreviewModel
     }
 
-init : String -> PreviewModel
-init rl =
+init : String -> String -> PreviewModel
+init rl rc =
     { rawLayout = rl
+    , rawCSS = rc
     , useImage = ImageData.emptyImage
     , imageOpacity = 50.0
     , imageScale = 1.0
@@ -63,6 +66,7 @@ updatePreview : Msg -> PreviewModel -> (PreviewModel, Cmd Msg)
 updatePreview msg model =
     case msg of
         SetLayout l -> { model | rawLayout = l } ! []
+        SetCSS c -> { model | rawCSS = c } ! []
         UseImage i -> { model | useImage = i } ! []
         SetImageO o -> { model | imageOpacity = o } ! []
         SetImageS s -> { model | imageScale = s / 100.0 } ! []
@@ -77,9 +81,14 @@ update msg model =
     updatePreview msg model.preview
     |> Return.map (\p -> { model | preview = p })
 
-makeSrc : String -> String
-makeSrc t =
-    "data:text/html;base64," ++ (Base64.encode t |> Result.withDefault "")
+makeSrc : String -> String -> String
+makeSrc c t =
+    let html =
+        case String.indices "</head>" t of
+            hd :: _ -> (String.slice 0 hd t) ++ "<style>" ++ c ++ "</style>" ++ (String.slice hd (String.length t) t)
+            _ -> "<style>" ++ c ++ "<style>" ++ t
+    in
+    "data:text/html;base64," ++ (Base64.encode html |> Result.withDefault "")
 
 viewPreview : PreviewModel -> Html Msg
 viewPreview model =
@@ -128,7 +137,7 @@ viewPreview model =
                 , HE.onWithOptions "mousedown" preventDef (JD.succeed MouseDown)
                 ]
                 [ Html.iframe
-                    [ HA.src (makeSrc model.rawLayout)
+                    [ HA.src (makeSrc model.rawCSS model.rawLayout)
                     , HA.style
                         [ ("position", "absolute")
                         , ("width", "100%")

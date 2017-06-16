@@ -25,7 +25,7 @@ import Preview
 type alias Flags =
     { screenWidth : Float }
 
-type SelectedView = Image | Layout
+type SelectedView = Image | Layout | CSS
 
 type Msg
     = NoOp
@@ -36,6 +36,7 @@ type Msg
     | SetDivider (Mouse.Position, Mouse.Position)
     | SelectView SelectedView
     | SetLayout String
+    | SetCSS String
     | ImagesMsg Images.Msg
     | PreviewMsg Preview.Msg
     | HaveState JD.Value
@@ -47,6 +48,7 @@ type alias ModelW slice =
     , draggingDivider : Maybe Mouse.Position
     , at : Mouse.Position
     , rawLayout : String
+    , rawCSS : String
     , resolutions : List (Int,Int)
     , viewScale : Float
     , selectedView : SelectedView
@@ -173,6 +175,7 @@ encodeState : Model -> JE.Value
 encodeState model =
     JE.object
         [ ("rawLayout", JE.string model.rawLayout)
+        , ("rawCSS", JE.string model.rawCSS)
         , ("images", JE.list (List.map encodeImage (Dict.toList model.images.images)))
         ]
 
@@ -191,14 +194,14 @@ decodeImage =
 
 decodeState : JD.Decoder (List Msg)
 decodeState =
-    let messages images rl =
-        [SetLayout rl] ++
+    let messages images rl rc =
+        [SetLayout rl, SetCSS rc] ++
             (List.map (\i -> ImagesMsg (Images.ImageLoaded i)) images)
     in
-    JD.map2 messages
+    JD.map3 messages
         (JD.field "images" (JD.list decodeImage))
         (JD.field "rawLayout" JD.string)
-
+        (JD.field "rawCSS" JD.string)
 save : Model -> (Model, Cmd Msg)
 save model =
     model ! [LocalStorage.storeState (encodeState model)]
@@ -212,17 +215,20 @@ load model v =
 
 init : Flags -> (Model, Cmd Msg)
 init flags =
-    let rl = "<div style='display: flex; align-items: center; justify-content: center;'>Edit layout tab to change ...</div>" in
+    let rl = "<div class='begin'>Edit layout tab to change ...</div>" in
+    let rc = "begin { display: flex; align-items: center; justify-content: center; }"
+    in
     { windowWidth = 0.7
     , screenWidth = flags.screenWidth
     , draggingDivider = Nothing
     , at = Mouse.Position 0 0
     , rawLayout = rl
+    , rawCSS = rc
     , resolutions = []
     , viewScale = 1.0
     , selectedView = Layout
     , images = Images.init
-    , preview = Preview.init rl
+    , preview = Preview.init rl rc
     } ! [LocalStorage.getState ()]
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -249,6 +255,10 @@ update msg model =
             { model | selectedView = v } ! []
         SetLayout l ->
             Preview.update (Preview.SetLayout l) { model | rawLayout = l }
+            |> Return.mapCmd PreviewMsg
+            |> Return.andThen save
+        SetCSS c ->
+            Preview.update (Preview.SetCSS c) { model | rawCSS = c }
             |> Return.mapCmd PreviewMsg
             |> Return.andThen save
         ImagesMsg (Images.SelectImage i) ->
@@ -291,11 +301,15 @@ view model =
             [ div [ c.class [WindowTabCntr] ]
                 [ div [ addIfSelected Image [SelTab] [WindowTab], onClick (SelectView Image) ] [ Html.text "Image" ]
                 , div [ addIfSelected Layout [SelTab] [WindowTab], onClick (SelectView Layout) ] [ Html.text "Layout" ]
+                , div [ addIfSelected CSS [SelTab] [WindowTab], onClick (SelectView CSS) ] [ Html.text "CSS" ]
                 ]
             , div [ c.class [WindowView] ]
                 [ div [ addIfSelected Image [SelView] [Fill] ] [ Images.view model |> Html.map ImagesMsg ]
                 , div [ addIfSelected Layout [SelView] [Fill] ]
                     [ Html.textarea [ c.class [FillText], HA.property "value" (JE.string model.rawLayout), onInput SetLayout ] []
+                    ]
+                , div [ addIfSelected CSS [SelView] [Fill] ]
+                    [ Html.textarea [ c.class [FillText], HA.property "value" (JE.string model.rawCSS), onInput SetCSS ] []
                     ]
                 ]
             ]
