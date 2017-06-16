@@ -1,5 +1,6 @@
 module Main exposing (..)
 
+import Debounce
 import Debug exposing (log)
 import Dict exposing (Dict)
 import Html exposing (Html, text, div, program)
@@ -15,6 +16,7 @@ import Json.Encode as JE
 import Result.Extra as ResultX
 import Return
 import Task exposing (Task)
+import Time exposing (Time, second)
 import Window
 
 import ImageData
@@ -40,6 +42,8 @@ type Msg
     | ImagesMsg Images.Msg
     | PreviewMsg Preview.Msg
     | HaveState JD.Value
+    | InitiateSave
+    | DebounceMsg Debounce.Msg
 
 type alias ModelW slice =
     { slice
@@ -52,6 +56,12 @@ type alias ModelW slice =
     , resolutions : List (Int,Int)
     , viewScale : Float
     , selectedView : SelectedView
+    , debounce : Debounce.Debounce ()
+    }
+
+saveDebounceStrat =
+    { strategy = Debounce.later (1 * second)
+    , transform = DebounceMsg
     }
 
 type alias Model = ModelW (Images.Model (Preview.Model {}))
@@ -202,9 +212,15 @@ decodeState =
         (JD.field "images" (JD.list decodeImage))
         (JD.field "rawLayout" JD.string)
         (JD.field "rawCSS" JD.string)
-save : Model -> (Model, Cmd Msg)
+
+save : Model -> Cmd Msg
 save model =
-    model ! [LocalStorage.storeState (encodeState model)]
+    LocalStorage.storeState (encodeState model)
+
+doSave : Model -> (Model, Cmd Msg)
+doSave model =
+    model ! [Task.succeed InitiateSave |> Task.perform identity]
+
 
 load : Model -> JD.Value -> (Model, Cmd Msg)
 load model v =
@@ -229,6 +245,7 @@ init flags =
     , selectedView = Layout
     , images = Images.init
     , preview = Preview.init rl rc
+    , debounce = Debounce.init
     } ! [LocalStorage.getState ()]
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -256,11 +273,11 @@ update msg model =
         SetLayout l ->
             Preview.update (Preview.SetLayout l) { model | rawLayout = l }
             |> Return.mapCmd PreviewMsg
-            |> Return.andThen save
+            |> Return.andThen doSave
         SetCSS c ->
             Preview.update (Preview.SetCSS c) { model | rawCSS = c }
             |> Return.mapCmd PreviewMsg
-            |> Return.andThen save
+            |> Return.andThen doSave
         ImagesMsg (Images.SelectImage i) ->
             Images.update (Images.SelectImage i) model
             |> Return.mapCmd ImagesMsg
@@ -268,7 +285,7 @@ update msg model =
         ImagesMsg msg ->
             Images.update msg model
             |> Return.mapCmd ImagesMsg
-            |> Return.andThen save
+            |> Return.andThen doSave
         PreviewMsg Preview.MouseDown ->
             update (PreviewMsg (Preview.MouseDownPosition model.at)) model
         PreviewMsg msg ->
@@ -276,6 +293,12 @@ update msg model =
             |> Return.mapCmd PreviewMsg
         HaveState s ->
             load model s
+        InitiateSave ->
+            Debounce.push saveDebounceStrat () model.debounce
+            |> Return.map (\d -> { model | debounce = d })
+        DebounceMsg d ->
+            Debounce.update saveDebounceStrat (Debounce.takeLast (\_ -> save model)) d model.debounce
+            |> Return.map (\d -> { model | debounce = d })
         _ -> model ! []
 
 view : Model -> Html Msg

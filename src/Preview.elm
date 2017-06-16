@@ -20,6 +20,7 @@ type alias PreviewModel =
     , dragging : Maybe Mouse.Position
     , at : Mouse.Position
     , imageAt : (Float,Float)
+    , locked : Bool
     }
 
 type Msg
@@ -32,6 +33,7 @@ type Msg
     | MouseDownPosition Mouse.Position
     | MouseUp
     | MouseMove Mouse.Position
+    | SetLocked Bool
 
 type alias Model a =
     { a
@@ -48,6 +50,7 @@ init rl rc =
     , dragging = Nothing
     , at = Mouse.Position 0 0
     , imageAt = (0.0,0.0)
+    , locked = False
     }
 
 newImageAt model =
@@ -67,11 +70,16 @@ updatePreview msg model =
     case msg of
         SetLayout l -> { model | rawLayout = l } ! []
         SetCSS c -> { model | rawCSS = c } ! []
+        SetLocked l -> { model | locked = l } ! []
         UseImage i -> { model | useImage = i } ! []
         SetImageO o -> { model | imageOpacity = o } ! []
         SetImageS s -> { model | imageScale = s / 100.0 } ! []
         MouseDown -> model ! []
-        MouseDownPosition p -> { model | dragging = Just p } ! []
+        MouseDownPosition p ->
+            if model.locked then
+                model ! []
+            else
+                { model | dragging = Just p } ! []
         MouseUp ->
             { model | dragging = Nothing, imageAt = newImageAt model } ! []
         MouseMove at -> { model | at = at } ! []
@@ -97,7 +105,7 @@ viewPreview model =
         "translate(-50%,-50%) scale(" ++ (toString model.imageScale) ++ ") translate(" ++ (toString (offx / model.imageScale)) ++ "px, " ++ (toString (offy / model.imageScale)) ++ "px)"
     in
     let defOptions = HE.defaultOptions in
-    let preventDef = { defOptions | preventDefault = True, stopPropagation = True } in
+    let preventDef = { defOptions | preventDefault = not model.locked, stopPropagation = not model.locked } in
     Html.div
         [ HA.style [("display", "flex"), ("flex-direction", "column"), ("height", "100vh"), ("width", "100%")] ]
         [ Html.div
@@ -121,9 +129,21 @@ viewPreview model =
                 ] []
             ]
         , Html.div
-            [ HA.style [("position", "relative"), ("overflow", "hidden"), ("width", "100%"), ("flex-grow", "1"), ("flex-shrink", "1")] ]
+            [ HA.style [("flex-grow", "0"), ("flex-shrink", "0")] ]
+            [ Html.button
+                [ HE.onClick (SetLocked (not model.locked)) ]
+                [ Html.text (if model.locked then "mouse interaction" else "mouse panning") ] ]
+        , Html.div
+            [ HA.style
+                [ ("position", "relative")
+                , ("overflow", "hidden")
+                , ("width", "100%")
+                , ("flex-grow", "1")
+                , ("flex-shrink", "1")
+                ]
+            ]
             [ Html.div
-                [ HA.style
+                ([ HA.style
                     [ ("position", "relative")
                     , ("left", "50%")
                     , ("top", "50%")
@@ -134,8 +154,13 @@ viewPreview model =
                     , ("border", "1px solid black")
                     , ("box-sizing", "border-box")
                     ]
-                , HE.onWithOptions "mousedown" preventDef (JD.succeed MouseDown)
-                ]
+                ] ++
+                    (if not model.locked then
+                        [HE.onWithOptions "mousedown" preventDef (JD.succeed MouseDown)]
+                    else
+                        []
+                    )
+                )
                 [ Html.iframe
                     [ HA.src (makeSrc model.rawCSS model.rawLayout)
                     , HA.style
