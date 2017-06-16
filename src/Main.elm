@@ -131,6 +131,7 @@ css = (stylesheet << namespace "lightbox")
         , backgroundColor (rgb 255 255 255)
         , alignItems center
         , justifyContent center
+        , cursor pointer 
         ]
     , class SelTab
         [ backgroundColor (rgb 192 192 192)
@@ -362,6 +363,7 @@ view : Model -> Html Msg
 view model =
     let defOptions = defaultOptions in
     let preventDef = { defOptions | preventDefault = True, stopPropagation = True } in
+    let clickNoDef msg = Html.Events.onWithOptions "click" preventDef (JD.succeed msg) in
     let dividerAt =
         case model.draggingDivider of
             Just at ->
@@ -379,10 +381,10 @@ view model =
     div [ c.class [App], onMouseUp GeneralStopDrag ]
         [ div [ c.class [WindowContainer], HA.style [("width", pct dividerAt)] ]
             [ div [ c.class [WindowTabCntr] ]
-                [ div [ addIfSelected File [SelTab] [WindowTab], onClick (SelectView File) ] [ Html.text "File" ]
-                , div [ addIfSelected Image [SelTab] [WindowTab], onClick (SelectView Image) ] [ Html.text "Image" ]
-                , div [ addIfSelected Layout [SelTab] [WindowTab], onClick (SelectView Layout) ] [ Html.text "Layout" ]
-                , div [ addIfSelected CSS [SelTab] [WindowTab], onClick (SelectView CSS) ] [ Html.text "CSS" ]
+                [ div [ addIfSelected File [SelTab] [WindowTab], clickNoDef (SelectView File) ] [ Html.text "File" ]
+                , div [ addIfSelected Image [SelTab] [WindowTab], clickNoDef (SelectView Image) ] [ Html.text "Image" ]
+                , div [ addIfSelected Layout [SelTab] [WindowTab], clickNoDef (SelectView Layout) ] [ Html.text "Layout" ]
+                , div [ addIfSelected CSS [SelTab] [WindowTab], clickNoDef (SelectView CSS) ] [ Html.text "CSS" ]
                 ]
             , div [ c.class [WindowView] ]
                 [ div [ addIfSelected File [SelView] [Fill] ]
