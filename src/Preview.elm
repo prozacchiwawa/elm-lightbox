@@ -63,7 +63,7 @@ init rl rc =
     , dragging = Nothing
     , at = Mouse.Position 0 0
     , imageAt = (0.0,0.0)
-    , locked = False
+    , locked = True
     , debounceHTML = Debounce.init
     , currentHTML = makeSrc rc rl
     }
@@ -170,7 +170,7 @@ viewPreview model =
                 ]
             ]
             [ Html.div
-                ([ HA.style
+                [ HA.style
                     [ ("position", "relative")
                     , ("left", "50%")
                     , ("top", "50%")
@@ -181,20 +181,29 @@ viewPreview model =
                     , ("border", "1px solid black")
                     , ("box-sizing", "border-box")
                     ]
-                ] ++
-                    (if not model.locked then
-                        [HE.onWithOptions "mousedown" preventDef (JD.succeed MouseDown)]
-                    else
-                        []
-                    )
+                ]
+                ((if not model.locked then
+                    [ Html.div
+                        [ HA.style
+                            [ ("position", "absolute")
+                            , ("width", "100%")
+                            , ("height", "100%")
+                            , ("z-index", "4")
+                            ]
+                        , HE.onWithOptions "mousedown" preventDef (JD.succeed MouseDown)
+                        ] []
+                    ]
+                else
+                    []
                 )
-                [ Html.iframe
+                ++ [ Html.iframe
                     [ HA.src model.currentHTML
                     , HA.style
                         [ ("position", "absolute")
                         , ("width", "100%")
                         , ("height", "100%")
-                        , ("z-index", "2")
+                        , ("z-index", "3")
+                        , ("opacity", (toString ((100.0 - model.imageOpacity) / 100.0)))
                         ]
                     ] []
                 , Html.img
@@ -202,12 +211,11 @@ viewPreview model =
                         [ ("position", "absolute")
                         , ("width", "100%")
                         , ("height", "100%")
-                        , ("z-index", "3")
-                        , ("opacity", (toString (model.imageOpacity / 100.0)))
+                        , ("z-index", "2")
                         ]
                     , HA.src model.useImage.data
                     ] []
-                ]
+                ])
             ]
         ]
 

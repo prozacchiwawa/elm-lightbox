@@ -219,7 +219,7 @@ decodeState =
         (JD.field "images" (JD.list decodeImage))
         (JD.field "rawLayout" JD.string)
         (JD.field "rawCSS" JD.string)
-        (JD.oneOf [JD.field "divider" JD.float, JD.succeed 0.7])
+        (JD.oneOf [JD.field "divider" JD.float, JD.succeed 0.3])
         (JD.oneOf [JD.field "imagesel" JD.string, JD.succeed "empty.jpg"])
 
 save : Model -> Cmd Msg
@@ -243,10 +243,43 @@ load model v =
 
 init : Flags -> (Model, Cmd Msg)
 init flags =
-    let rl = "<div class='begin'>Edit layout tab to change ...</div>" in
-    let rc = "begin { display: flex; align-items: center; justify-content: center; }"
+    let rl = """<html>
+<head></head>
+<body>
+<h1>What is this?</h1>
+<p>It's a lightbox that lets you overlay some images onto an iframe while
+editing the contents of the HTML and CSS that's presented.  You can zoom and
+pan, as well as changing the opacity of the image overlay.</p>
+<h2>It's for building properly-aligned HTML when what you have is a reference image.</h2>
+<p>Ever been frustrated about not having a tool that just shows you HTML and
+a design image at the same time?  This is made to help you quickly align HTML
+with a design so you can have pixel-perfect accuracy, and allows you to load
+multiple images so you can check all possible form factors.</p>
+<h2>So try loading an image</h2>
+<p>In the images, tab, try loading an image and selecting it, then editing some HTML
+to match the particular alignment.</p>
+<h2>An example</h2>
+<p>You can try <a target="_blank" href='https://pastebin.com/raw/Zs6rzzTh'>this</a> pastebin.  Just
+paste the text into the box on the file tab.  I'll improve this in the future if
+anybody but me likes it :-)</p>
+</body></html>"""
     in
-    { windowWidth = 0.7
+    let rc = """
+body {
+    font-size: 5vmin;
+    font-family: sans-serif;
+}
+h1 {
+    font-size: 8vmin;
+    font-family: sans-serif;
+}
+h2 {
+    font-size: 6vmin;
+    font-family: sans-serif;
+}
+"""
+    in
+    { windowWidth = 0.3
     , screenWidth = flags.screenWidth
     , draggingDivider = Nothing
     , at = Mouse.Position 0 0
