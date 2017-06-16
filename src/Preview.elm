@@ -1,6 +1,7 @@
 module Preview exposing (..)
 
 import Base64
+import Debounce
 import Html exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
@@ -8,6 +9,8 @@ import Json.Decode as JD
 import Json.Encode as JE
 import Mouse
 import Return
+import Task
+import Time exposing (Time, second)
 
 import ImageData
 
@@ -21,6 +24,8 @@ type alias PreviewModel =
     , at : Mouse.Position
     , imageAt : (Float,Float)
     , locked : Bool
+    , currentHTML : String
+    , debounceHTML : Debounce.Debounce ()
     }
 
 type Msg
@@ -34,10 +39,18 @@ type Msg
     | MouseUp
     | MouseMove Mouse.Position
     | SetLocked Bool
+    | SetHTML
+    | DeliverHTML
+    | DebounceMsg Debounce.Msg
 
 type alias Model a =
     { a
     | preview : PreviewModel
+    }
+
+htmlDebounceStrat =
+    { strategy = Debounce.later (0.33 * second)
+    , transform = DebounceMsg
     }
 
 init : String -> String -> PreviewModel
@@ -51,6 +64,8 @@ init rl rc =
     , at = Mouse.Position 0 0
     , imageAt = (0.0,0.0)
     , locked = False
+    , debounceHTML = Debounce.init
+    , currentHTML = makeSrc rc rl
     }
 
 newImageAt model =
@@ -68,8 +83,8 @@ newImageAt model =
 updatePreview : Msg -> PreviewModel -> (PreviewModel, Cmd Msg)
 updatePreview msg model =
     case msg of
-        SetLayout l -> { model | rawLayout = l } ! []
-        SetCSS c -> { model | rawCSS = c } ! []
+        SetLayout l -> updatePreview SetHTML { model | rawLayout = l }
+        SetCSS c -> updatePreview SetHTML { model | rawCSS = c }
         SetLocked l -> { model | locked = l } ! []
         UseImage i -> { model | useImage = i } ! []
         SetImageO o -> { model | imageOpacity = o } ! []
@@ -83,6 +98,18 @@ updatePreview msg model =
         MouseUp ->
             { model | dragging = Nothing, imageAt = newImageAt model } ! []
         MouseMove at -> { model | at = at } ! []
+        SetHTML ->
+            Debounce.push htmlDebounceStrat () model.debounceHTML
+            |> Return.map (\d -> { model | debounceHTML = d })
+        DeliverHTML ->
+            { model | currentHTML = makeSrc model.rawCSS model.rawLayout } ! []
+        DebounceMsg d ->
+            Debounce.update htmlDebounceStrat (Debounce.takeLast (\_ -> deliver ())) d model.debounceHTML
+            |> Return.map (\d -> { model | debounceHTML = d })
+
+deliver : () -> Cmd Msg
+deliver _ =
+    Task.succeed DeliverHTML |> Task.perform identity
 
 update : Msg -> Model a -> (Model a, Cmd Msg)
 update msg model =
@@ -162,7 +189,7 @@ viewPreview model =
                     )
                 )
                 [ Html.iframe
-                    [ HA.src (makeSrc model.rawCSS model.rawLayout)
+                    [ HA.src model.currentHTML
                     , HA.style
                         [ ("position", "absolute")
                         , ("width", "100%")

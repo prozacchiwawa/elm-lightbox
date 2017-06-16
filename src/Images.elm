@@ -10,6 +10,7 @@ import Html.CssHelpers
 import Html.Events as HE
 import Json.Decode as JD
 import Return
+import Task exposing (Task)
 import Window
 
 import ImageData
@@ -21,6 +22,7 @@ type Msg
     | ImageSelected
     | ImageLoaded ImageData.ImageDesc
     | SelectImage ImageData.ImageDesc
+    | RemoveImage String
 
 type alias ImagesModel =
     { images : Dict String ImageData.ImageDesc
@@ -34,6 +36,8 @@ type alias Model a =
 type CssClasses
     = PreviewRow
     | SelPrevRow
+    | RemoveImageButton
+    | ImageData
 
 css : Stylesheet
 css = (stylesheet << namespace "images")
@@ -51,6 +55,18 @@ css = (stylesheet << namespace "images")
         , displayFlex
         , backgroundColor (rgb 192 192 192)
         ]
+    , class RemoveImageButton
+        [ position relative
+        , displayFlex
+        , flexGrow (num 0)
+        , flexShrink (num 0)
+        ]
+    , class ImageData
+        [ position relative
+        , displayFlex
+        , flexGrow (num 1)
+        , flexShrink (num 1)
+        ]
     ]
 
 c : Html.CssHelpers.Namespace String class id msg
@@ -66,6 +82,13 @@ init =
     , imagesel = ei.name
     }
 
+selectImage : ImagesModel -> String -> List (Cmd Msg)
+selectImage model i =
+    model.images
+    |> Dict.get i
+    |> Maybe.map (\i -> [Task.succeed (SelectImage i) |> Task.perform identity])
+    |> Maybe.withDefault []
+
 updateImages : Msg -> ImagesModel -> (ImagesModel, Cmd Msg)
 updateImages msg model =
     case msg of
@@ -77,6 +100,29 @@ updateImages msg model =
             { model | images = Dict.insert v.name v model.images, showing = Nothing } ! []
         SelectImage s ->
             { model | imagesel = s.name } ! []
+        RemoveImage s ->
+            let newsel =
+                if model.imagesel == s then
+                    Dict.toList model.images
+                    |> List.map (\(n,v) -> n)
+                    |> List.head
+                    |> Maybe.withDefault "empty.png"
+                else
+                    model.imagesel
+            in
+            if s == "empty.png" then
+                model ! []
+            else
+                ({ model
+                | images = Dict.remove s model.images
+                , imagesel = newsel
+                } !
+                    (if newsel == model.imagesel then
+                        []
+                    else
+                        selectImage model newsel
+                    )
+                )
         _ -> model ! []
 
 update : Msg -> { model | images : ImagesModel } -> ({ model | images : ImagesModel }, Cmd Msg)
@@ -104,7 +150,8 @@ imagePreview model (_,ent) =
         [ c.class [if model.imagesel == ent.name then SelPrevRow else PreviewRow]
         , HE.onClick (SelectImage ent) ]
         [ Html.img [HA.src ent.data, HA.style [("width", vmin width), ("height", vmin height)]] []
-        , Html.text ent.name
+        , Html.div [ c.class [ImageData] ] [ Html.text ent.name ]
+        , Html.button [ c.class [RemoveImageButton], HE.onClick (RemoveImage ent.name) ] [ Html.text "X" ]
         ]
 
 
