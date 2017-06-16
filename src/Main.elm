@@ -36,6 +36,7 @@ type Msg
     | MouseMove Mouse.Position
     | WindowSize Window.Size
     | SetDivider (Mouse.Position, Mouse.Position)
+    | SetDividerTo Float
     | SelectView SelectedView
     | SetLayout String
     | SetCSS String
@@ -187,6 +188,7 @@ encodeState model =
         [ ("rawLayout", JE.string model.rawLayout)
         , ("rawCSS", JE.string model.rawCSS)
         , ("images", JE.list (List.map encodeImage (Dict.toList model.images.images)))
+        , ("divider", JE.float model.windowWidth)
         ]
 
 decodeSize : JD.Decoder Window.Size
@@ -204,14 +206,15 @@ decodeImage =
 
 decodeState : JD.Decoder (List Msg)
 decodeState =
-    let messages images rl rc =
-        [SetLayout rl, SetCSS rc] ++
+    let messages images rl rc divi =
+        [SetLayout rl, SetCSS rc, SetDividerTo divi] ++
             (List.map (\i -> ImagesMsg (Images.ImageLoaded i)) images)
     in
-    JD.map3 messages
+    JD.map4 messages
         (JD.field "images" (JD.list decodeImage))
         (JD.field "rawLayout" JD.string)
         (JD.field "rawCSS" JD.string)
+        (JD.oneOf [JD.field "divider" JD.float, JD.succeed 0.7])
 
 save : Model -> Cmd Msg
 save model =
@@ -262,7 +265,11 @@ update msg model =
             |> Return.andThen (update (PreviewMsg Preview.MouseUp))
         SetDivider (newAt, oldAt) ->
             let movePx = toFloat (newAt.x - oldAt.x) in
-            { model | windowWidth = model.windowWidth + (movePx / model.screenWidth) } ! []
+            let newDiv = model.windowWidth + (movePx / model.screenWidth) in
+            update (SetDividerTo newDiv) model
+        SetDividerTo d ->
+            { model | windowWidth = d } ! []
+            |> Return.andThen doSave
         MouseMove to ->
             { model | at = to } ! []
             |> Return.andThen (update (PreviewMsg (Preview.MouseMove to)))
