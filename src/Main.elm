@@ -189,6 +189,7 @@ encodeState model =
         , ("rawCSS", JE.string model.rawCSS)
         , ("images", JE.list (List.map encodeImage (Dict.toList model.images.images)))
         , ("divider", JE.float model.windowWidth)
+        , ("imagesel", JE.string model.images.imagesel)
         ]
 
 decodeSize : JD.Decoder Window.Size
@@ -206,16 +207,17 @@ decodeImage =
 
 decodeState : JD.Decoder (List Msg)
 decodeState =
-    let messages images rl rc divi =
+    let messages images rl rc divi imsel =
         [SetLayout rl, SetCSS rc, SetDividerTo divi] ++
-            (List.map (\i -> ImagesMsg (Images.ImageLoaded i)) images)
+            (List.map (\i -> ImagesMsg (Images.ImageLoaded i)) images) ++
+            [ImagesMsg (Images.DoImageSelect imsel)]
     in
-    JD.map4 messages
+    JD.map5 messages
         (JD.field "images" (JD.list decodeImage))
         (JD.field "rawLayout" JD.string)
         (JD.field "rawCSS" JD.string)
         (JD.oneOf [JD.field "divider" JD.float, JD.succeed 0.7])
-
+        (JD.oneOf [JD.field "imagesel" JD.string, JD.succeed "empty.jpg"])
 save : Model -> Cmd Msg
 save model =
     LocalStorage.storeState (encodeState model)
@@ -289,6 +291,7 @@ update msg model =
             Images.update (Images.SelectImage i) model
             |> Return.mapCmd ImagesMsg
             |> Return.andThen (update (PreviewMsg (Preview.UseImage i)))
+            |> Return.andThen doSave
         ImagesMsg msg ->
             Images.update msg model
             |> Return.mapCmd ImagesMsg

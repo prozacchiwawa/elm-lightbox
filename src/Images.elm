@@ -23,6 +23,7 @@ type Msg
     | ImageLoaded ImageData.ImageDesc
     | SelectImage ImageData.ImageDesc
     | RemoveImage String
+    | DoImageSelect String
 
 type alias ImagesModel =
     { images : Dict String ImageData.ImageDesc
@@ -100,6 +101,8 @@ updateImages msg model =
             { model | images = Dict.insert v.name v model.images, showing = Nothing } ! []
         SelectImage s ->
             { model | imagesel = s.name } ! []
+        DoImageSelect s ->
+            model ! (selectImage model s)
         RemoveImage s ->
             let newsel =
                 if model.imagesel == s then
