@@ -27,7 +27,7 @@ import Preview
 type alias Flags =
     { screenWidth : Float }
 
-type SelectedView = Image | Layout | CSS
+type SelectedView = File | Image | Layout | CSS
 
 type Msg
     = NoOp
@@ -45,6 +45,8 @@ type Msg
     | HaveState JD.Value
     | InitiateSave
     | DebounceMsg Debounce.Msg
+    | SetSaveData String
+    | MakeSaveData
 
 type alias ModelW slice =
     { slice
@@ -58,6 +60,7 @@ type alias ModelW slice =
     , viewScale : Float
     , selectedView : SelectedView
     , debounce : Debounce.Debounce ()
+    , savedata : String
     }
 
 saveDebounceStrat =
@@ -218,9 +221,13 @@ decodeState =
         (JD.field "rawCSS" JD.string)
         (JD.oneOf [JD.field "divider" JD.float, JD.succeed 0.7])
         (JD.oneOf [JD.field "imagesel" JD.string, JD.succeed "empty.jpg"])
+
 save : Model -> Cmd Msg
 save model =
-    LocalStorage.storeState (encodeState model)
+    Cmd.batch
+        [ LocalStorage.storeState (encodeState model)
+        , Task.succeed MakeSaveData |> Task.perform identity
+        ]
 
 doSave : Model -> (Model, Cmd Msg)
 doSave model =
@@ -251,6 +258,7 @@ init flags =
     , images = Images.init
     , preview = Preview.init rl rc
     , debounce = Debounce.init
+    , savedata = ""
     } ! [LocalStorage.getState ()]
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -309,6 +317,12 @@ update msg model =
         DebounceMsg d ->
             Debounce.update saveDebounceStrat (Debounce.takeLast (\_ -> save model)) d model.debounce
             |> Return.map (\d -> { model | debounce = d })
+        MakeSaveData ->
+            { model | savedata = JE.encode 0 (encodeState model) } ! []
+        SetSaveData s ->
+            JD.decodeString decodeState s
+            |> Result.map (\l -> List.foldl (\msg model -> Return.andThen (update msg) model) (Return.singleton model) l)
+            |> Result.withDefault (model ! [])
         _ -> model ! []
 
 view : Model -> Html Msg
@@ -332,12 +346,20 @@ view model =
     div [ c.class [App], onMouseUp GeneralStopDrag ]
         [ div [ c.class [WindowContainer], HA.style [("width", pct dividerAt)] ]
             [ div [ c.class [WindowTabCntr] ]
-                [ div [ addIfSelected Image [SelTab] [WindowTab], onClick (SelectView Image) ] [ Html.text "Image" ]
+                [ div [ addIfSelected File [SelTab] [WindowTab], onClick (SelectView File) ] [ Html.text "File" ]
+                , div [ addIfSelected Image [SelTab] [WindowTab], onClick (SelectView Image) ] [ Html.text "Image" ]
                 , div [ addIfSelected Layout [SelTab] [WindowTab], onClick (SelectView Layout) ] [ Html.text "Layout" ]
                 , div [ addIfSelected CSS [SelTab] [WindowTab], onClick (SelectView CSS) ] [ Html.text "CSS" ]
                 ]
             , div [ c.class [WindowView] ]
-                [ div [ addIfSelected Image [SelView] [Fill] ] [ Images.view model |> Html.map ImagesMsg ]
+                [ div [ addIfSelected File [SelView] [Fill] ]
+                    [ Html.textarea
+                        [ c.class [FillText]
+                        , HA.property "value" (JE.string model.savedata)
+                        , onInput SetSaveData
+                        ] []
+                    ]
+                , div [ addIfSelected Image [SelView] [Fill] ] [ Images.view model |> Html.map ImagesMsg ]
                 , div [ addIfSelected Layout [SelView] [Fill] ]
                     [ Html.textarea [ c.class [FillText], HA.property "value" (JE.string model.rawLayout), onInput SetLayout ] []
                     ]
