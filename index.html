@@ -108,7 +108,10 @@
         }
         function showCodeMirror(v) {
           if (this.codeMirror) {
-            if (v) { this.codeMirror.refresh(); }
+            if (v) {
+              this.codeMirror.getDoc().setValue(this.value);
+              this.codeMirror.refresh();
+            }
           }
         }
         Object.defineProperty(Node.prototype, '__arty__visible', {

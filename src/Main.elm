@@ -125,6 +125,7 @@ css = (stylesheet << namespace "lightbox")
         , flexGrow (num 0)
         , flexShrink (num 0)
         , boxSizing borderBox
+        , backgroundColor (rgb 255 255 255)
         ]
     , class WindowTab
         [ height (vmin 6)
@@ -147,6 +148,7 @@ css = (stylesheet << namespace "lightbox")
         , displayFlex
         , flexGrow (num 1)
         , flexShrink (num 1)
+        , backgroundColor (rgb 255 255 255)
         ]
     , class Divider
         [ width (pct 0.5)
@@ -266,9 +268,8 @@ multiple images so you can check all possible form factors.</p>
 <p>In the images, tab, try loading an image and selecting it, then editing some HTML
 to match the particular alignment.</p>
 <h2>An example</h2>
-<p>You can try <a target="_blank" href='https://pastebin.com/raw/Zs6rzzTh'>this</a> pastebin.  Just
-paste the text into the box on the file tab.  I'll improve this in the future if
-anybody but me likes it :-)</p>
+<p>You can try <a target="_blank" href='https://pastebin.com/raw/Zs6rzzTh'>this</a> pastebin.
+Just load it in the File tab.</p>
 </body></html>"""
     in
     let rc = """
