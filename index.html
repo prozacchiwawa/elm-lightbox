@@ -1,11 +1,41 @@
 <html>
 <head>
+  <meta charset="utf-8"/>
+  <link rel=stylesheet href="CodeMirror/doc/docs.css">
+
+  <link rel="stylesheet" href="CodeMirror/lib/codemirror.css">
+  <link rel="stylesheet" href="CodeMirror/addon/hint/show-hint.css">
+  <script src="CodeMirror/lib/codemirror.js"></script>
+  <script src="CodeMirror/addon/hint/show-hint.js"></script>
+  <script src="CodeMirror/addon/hint/xml-hint.js"></script>
+  <script src="CodeMirror/addon/hint/html-hint.js"></script>
+  <script src="CodeMirror/mode/xml/xml.js"></script>
+  <script src="CodeMirror/mode/javascript/javascript.js"></script>
+  <script src="CodeMirror/mode/css/css.js"></script>
+  <script src="CodeMirror/mode/htmlmixed/htmlmixed.js"></script>
+  <script src="js/FileSaver.min.js"></script>
+  <style type="text/css">
+    .CodeMirror {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      left: 0;
+      top: 0;
+      border-top: 1px solid #888;
+      border-bottom: 1px solid #888;
+      box-sizing: border-box;
+    }
+    .CodeMirror-scroll.CodeMirror-scroll {
+      position: relative;
+      width: 100%;
+      height: 90vh;
+    }
+  </style>
 </head>
 <body style='margin: 0; overflow: hidden;'>
     <div id='app' style='width: 100vw; height: 100vh;'>
     </div>
     <script src='out/index.js'></script>
-    <script src='out/support.js'></script>
     <script>
         console.log(Elm);
         var div = document.getElementById('app');
@@ -30,6 +60,7 @@
             // We build up the `ImagePortData` object here that will be passed to our Elm
             // runtime through the `fileContentRead` subscription.
             var portData = {
+              id: id,
               contents: base64encoded,
               filename: file.name
             };
@@ -44,8 +75,13 @@
         });
 
         app.ports.storeState.subscribe(function(data) {
-          console.log('storeState',data);
           localStorage.setItem('save',JSON.stringify(data));
+        });
+        app.ports.saveFile.subscribe(function(data) {
+          var fname = data[0];
+          var fdata = data[1];
+          var blob = new Blob([fdata], {type: "application/json;charset=utf-8"});
+          saveAs(blob, fname);
         });
         app.ports.getState.subscribe(function() {
           var saved = localStorage.getItem('save');
@@ -53,6 +89,33 @@
           if (saved && saved != '') {
             app.ports.haveState.send(JSON.parse(saved));
           }
+        });
+        function enableCodeMirror(v) {
+          console.log('enableCodeMirror',this);
+          if (v && !this.codeMirror) {
+            if (this.parentNode) {
+              var self = this;
+              this.codeMirror = CodeMirror.fromTextArea(this);
+              this.codeMirror.on('change', function(doc, change) {
+                  var evt = new CustomEvent('__arty__change', { detail: self.codeMirror.getDoc().getValue() });
+                  self.dispatchEvent(evt);
+              });
+            } else {
+              var self = this;
+              setTimeout(function() { enableCodeMirror.apply(self, [v]); }, 100);
+            }
+          }
+        }
+        function showCodeMirror(v) {
+          if (this.codeMirror) {
+            if (v) { this.codeMirror.refresh(); }
+          }
+        }
+        Object.defineProperty(Node.prototype, '__arty__visible', {
+          set: showCodeMirror
+        });
+        Object.defineProperty(Node.prototype, '__arty__enableCodeMirror', {
+          set: enableCodeMirror
         })
     </script>
 </body>

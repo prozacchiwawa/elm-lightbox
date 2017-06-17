@@ -1,5 +1,6 @@
 module Main exposing (..)
 
+import Base64
 import Debounce
 import Debug exposing (log)
 import Dict exposing (Dict)
@@ -22,6 +23,7 @@ import Window
 import ImageData
 import Images
 import LocalStorage
+import Ports
 import Preview
 
 type alias Flags =
@@ -47,6 +49,9 @@ type Msg
     | DebounceMsg Debounce.Msg
     | SetSaveData String
     | MakeSaveData
+    | LoadFile
+    | DataLoaded Ports.ImagePortData
+    | OutputSaveData
 
 type alias ModelW slice =
     { slice
@@ -131,7 +136,7 @@ css = (stylesheet << namespace "lightbox")
         , backgroundColor (rgb 255 255 255)
         , alignItems center
         , justifyContent center
-        , cursor pointer 
+        , cursor pointer
         ]
     , class SelTab
         [ backgroundColor (rgb 192 192 192)
@@ -157,6 +162,7 @@ css = (stylesheet << namespace "lightbox")
     , class Fill
         [ display none
         , width (pct 100)
+        , height (pct 100)
         , position relative
         , margin (px 0)
         , boxSizing borderBox
@@ -357,6 +363,27 @@ update msg model =
             JD.decodeString decodeState s
             |> Result.map (\l -> List.foldl (\msg model -> Return.andThen (update msg) model) (Return.singleton model) l)
             |> Result.withDefault (model ! [])
+        LoadFile ->
+            model ! [Ports.fileSelected "load-input"]
+        DataLoaded f ->
+            if f.id == "load-input" then
+                let rawBase64 = String.split "," f.contents in
+                let base64 =
+                    case rawBase64 of
+                        [] -> ""
+                        hd :: [] -> hd
+                        junk :: data :: _ -> data
+                in
+                base64
+                |> Base64.decode
+                |> Result.andThen (JD.decodeString JD.value)
+                |> Result.map (load model)
+                |> Result.withDefault (model ! [])
+            else
+                model ! []
+        OutputSaveData ->
+            let savedata = JE.encode 0 (encodeState model) in
+            { model | savedata = savedata } ! [Ports.saveFile ("layout.json", savedata)]
         _ -> model ! []
 
 view : Model -> Html Msg
@@ -388,18 +415,33 @@ view model =
                 ]
             , div [ c.class [WindowView] ]
                 [ div [ addIfSelected File [SelView] [Fill] ]
-                    [ Html.textarea
-                        [ c.class [FillText]
-                        , HA.property "value" (JE.string model.savedata)
-                        , onInput SetSaveData
-                        ] []
+                    [ Html.div
+                        []
+                        [ Html.text "Load"
+                        , Html.input
+                            [ HA.id "load-input", HA.type_ "file", Html.Events.on "change" (JD.succeed LoadFile) ]
+                            []
+                        ]
+                    , Html.button [ Html.Events.onClick OutputSaveData ] [ Html.text "Save" ]
                     ]
                 , div [ addIfSelected Image [SelView] [Fill] ] [ Images.view model |> Html.map ImagesMsg ]
                 , div [ addIfSelected Layout [SelView] [Fill] ]
-                    [ Html.textarea [ c.class [FillText], HA.property "value" (JE.string model.rawLayout), onInput SetLayout ] []
+                    [ Html.textarea
+                        [ c.class [FillText]
+                        , HA.property "value" (JE.string model.rawLayout)
+                        , HA.property "__arty__enableCodeMirror" (JE.bool True)
+                        , HA.property "__arty__visible" (JE.bool (Layout == model.selectedView))
+                        , Html.Events.on "__arty__change" (JD.field "detail" JD.string |> JD.map SetLayout)
+                        ] []
                     ]
                 , div [ addIfSelected CSS [SelView] [Fill] ]
-                    [ Html.textarea [ c.class [FillText], HA.property "value" (JE.string model.rawCSS), onInput SetCSS ] []
+                    [ Html.textarea
+                        [ c.class [FillText]
+                        , HA.property "value" (JE.string model.rawCSS)
+                        , HA.property "__arty__enableCodeMirror" (JE.bool True)
+                        , HA.property "__arty__visible" (JE.bool (CSS == model.selectedView))
+                        , Html.Events.on "__arty__change" (JD.field "detail" JD.string |> JD.map SetCSS)
+                        ] []
                     ]
                 ]
             ]
@@ -422,6 +464,7 @@ main =
                     [ Mouse.moves MouseMove
                     , Window.resizes WindowSize
                     , Sub.map ImagesMsg (Images.subs m)
-                    , LocalStorage.haveState (log "haveState" >> HaveState)
+                    , LocalStorage.haveState HaveState
+                    , Ports.fileContentRead DataLoaded
                     ]
         }

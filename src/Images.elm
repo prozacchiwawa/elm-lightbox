@@ -96,7 +96,10 @@ updateImages msg model =
         ImageSelected ->
             model ! [Ports.fileSelected "file-input"]
         ImageRead data ->
-            { model | showing = Just (data.filename, data.contents) } ! []
+            if data.id == "file-input" then
+                { model | showing = Just (data.filename, data.contents) } ! []
+            else
+                model ! []
         ImageLoaded v ->
             { model | images = Dict.insert v.name v model.images, showing = Nothing } ! []
         SelectImage s ->

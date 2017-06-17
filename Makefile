@@ -1,4 +1,7 @@
-all: out/index.js
+all: out/index.js CodeMirror/lib/codemirror.js
+
+CodeMirror/lib/codemirror.js: CodeMirror
+	cd CodeMirror && npm install
 
 out:
 	mkdir -p out
