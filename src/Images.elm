@@ -39,10 +39,22 @@ type CssClasses
     | SelPrevRow
     | RemoveImageButton
     | ImageData
+    | LoadImg
+    | Container
+    | LoadButton
+    | ListContainer
+    | PreviewContainer
+    | ImageDataRow
 
 css : Stylesheet
 css = (stylesheet << namespace "images")
-    [ class PreviewRow
+    [ class Container
+        [ width (pct 100)
+        , position relative
+        , displayFlex
+        , flexDirection column
+        ]
+    , class PreviewRow
         [ width (pct 100)
         , height (vmin 10)
         , position relative
@@ -59,14 +71,50 @@ css = (stylesheet << namespace "images")
     , class RemoveImageButton
         [ position relative
         , displayFlex
+        , fontSize (vmin 3)
+        , fontWeight (int 900)
         , flexGrow (num 0)
         , flexShrink (num 0)
+        , backgroundColor (rgba 192 0 0 0.7)
+        , border (px 0)
+        , borderRadius (vmin 1)
+        , width (vmin 5)
+        , height (vmin 5)
+        , alignItems center
+        , justifyContent center
+        , marginRight (vmin 0.5)
+        , marginTop (vmin 0.5)
         ]
     , class ImageData
         [ position relative
         , displayFlex
+        , flexDirection column
         , flexGrow (num 1)
         , flexShrink (num 1)
+        , fontSize (vmin 3)
+        ]
+    , class ImageDataRow
+        [ position relative
+        , margin (px 0)
+        , padding (px 0)
+        ]
+    , class LoadImg
+        [ zIndex (int -1)
+        ]
+    , class LoadButton
+        [ margin (vmin 1)
+        ]
+    , class ListContainer
+        [ displayFlex
+        , flexDirection column
+        ]
+    , class PreviewContainer
+        [ displayFlex
+        , flexDirection row
+        , width (vmin 10)
+        , height (vmin 10)
+        , alignItems center
+        , justifyContent center
         ]
     ]
 
@@ -155,9 +203,16 @@ imagePreview model (_,ent) =
     Html.div
         [ c.class [if model.imagesel == ent.name then SelPrevRow else PreviewRow]
         , HE.onClick (SelectImage ent) ]
-        [ Html.img [HA.src ent.data, HA.style [("width", vmin width), ("height", vmin height)]] []
-        , Html.div [ c.class [ImageData] ] [ Html.text ent.name ]
-        , Html.button [ c.class [RemoveImageButton], HE.onClick (RemoveImage ent.name) ] [ Html.text "X" ]
+        [ Html.div [ c.class [PreviewContainer] ] [ Html.img [HA.src ent.data, HA.style [("width", vmin width), ("height", vmin height)]] [] ]
+        , Html.div
+            [ c.class [ImageData] ]
+            [ Html.p [c.class [ImageDataRow]] [Html.text ent.name]
+            , Html.p [c.class [ImageDataRow]] [Html.text ((toString ent.size.width) ++ "x" ++ (toString ent.size.height))]
+            ]
+        , if ent.name /= "empty.png" then
+            Html.button [ c.class [RemoveImageButton], HE.onClick (RemoveImage ent.name) ] [ Html.text "X" ]
+          else
+            Html.div [] []
         ]
 
 
@@ -169,14 +224,19 @@ viewImages : ImagesModel -> Html Msg
 viewImages model =
     case model.showing of
         Just (name,image) ->
-            Html.div [] [ Html.img [ HA.src image, HE.on "load" (decodeImageLoad name image |> JD.map ImageLoaded) ] [] ]
+            Html.div
+                [ c.class [LoadImg] ]
+                [ Html.img [ HA.src image, HE.on "load" (decodeImageLoad name image |> JD.map ImageLoaded) ] [] ]
         Nothing ->
             Html.div
-                []
-                ([ Html.input
-                    [ HA.id "file-input", HA.type_ "file", HE.on "change" (JD.succeed ImageSelected) ]
+                [ c.class [Container] ]
+                [ Html.input
+                    [ c.class [LoadButton], HA.id "file-input", HA.type_ "file", HE.on "change" (JD.succeed ImageSelected) ]
                     []
-                ] ++ (imagePreviews model))
+                , Html.div
+                    [ c.class [ListContainer] ]
+                    (imagePreviews model)
+                ]
 
 view : { model | images : ImagesModel } -> Html Msg
 view model =
