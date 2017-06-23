@@ -308,7 +308,7 @@ multiple images so you can check all possible form factors.</p>
 <p>In the images, tab, try loading an image and selecting it, then editing some HTML
 to match the particular alignment.</p>
 <h2>An example</h2>
-<p>You can try <a target="_blank" href='https://pastebin.com/raw/Zs6rzzTh'>this</a> pastebin.
+<p>You can try <a target="_blank" href='https://raw.githubusercontent.com/prozacchiwawa/elm-lightbox/master/layout.json'>this</a> example.
 Just load it in the File tab.</p>
 </body></html>"""
     in
@@ -344,7 +344,7 @@ h2 {
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
-    case log "msg" msg of
+    case msg of
         StartDivDrag -> { model | draggingDivider = Just model.at } ! []
         GeneralStopDrag ->
             let dragOp =
