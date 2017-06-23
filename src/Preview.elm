@@ -1,9 +1,13 @@
 module Preview exposing (..)
 
 import Base64
+import Css exposing (..)
+-- import Css.Elements exposing (body)
+import Css.Namespace exposing (namespace)
 import Debounce
 import Html exposing (Html)
 import Html.Attributes as HA
+import Html.CssHelpers
 import Html.Events as HE
 import Json.Decode as JD
 import Json.Encode as JE
@@ -47,6 +51,64 @@ type alias Model a =
     { a
     | preview : PreviewModel
     }
+
+type CssClasses
+    = Container
+    | Headings
+    | HeadingControl
+    | ViewContainer
+    | MouseCover
+    | HeadingButton
+
+css : Stylesheet
+css = (stylesheet << namespace "preview")
+    [ class Container
+        [ displayFlex
+        , flexDirection column
+        , height (vh 100)
+        , width (pct 100)
+        ]
+    , class Headings
+        [ displayFlex
+        , flexDirection row
+        , flexWrap wrap
+        , boxShadow5 (px 0) (px 5) (px 5) (px 0) (rgba 50 50 50 0.37)
+        , padding (vmin 1)
+        , alignItems center
+        ]
+    , class HeadingControl
+        [ displayFlex
+        , flexDirection row
+        , flexGrow (num 0)
+        , flexShrink (num 0)
+        , zIndex (int 5)
+        , alignItems center
+        ]
+    , class ViewContainer
+        [ position relative
+        , overflow hidden
+        , width (pct 100)
+        , flexGrow (num 1)
+        , flexShrink (num 1)
+        ]
+    , class MouseCover
+        [ position absolute
+        , width (pct 100)
+        , height (pct 100)
+        , zIndex (int 4)
+        ]
+    , class HeadingButton
+        [ borderRadius (vmin 1)
+        , backgroundColor (rgb 192 192 192)
+        , border (px 0)
+        , padding (vmin 1)
+        ]
+    ]
+
+c : Html.CssHelpers.Namespace String class id msg
+c = Html.CssHelpers.withNamespace "preview"
+cssdata : String
+cssdata = (Css.compile [css]).css
 
 htmlDebounceStrat =
     { strategy = Debounce.later (0.33 * second)
@@ -134,41 +196,38 @@ viewPreview model =
     let defOptions = HE.defaultOptions in
     let preventDef = { defOptions | preventDefault = not model.locked, stopPropagation = not model.locked } in
     Html.div
-        [ HA.style [("display", "flex"), ("flex-direction", "column"), ("height", "100vh"), ("width", "100%")] ]
+        [ c.class [Container] ]
         [ Html.div
-            [ HA.style [("flex-grow", "0"), ("flex-shrink", "0")] ]
-            [ Html.text "Image Opacity:"
-            , Html.input
-                [ HA.type_ "range"
-                , HA.min "0"
-                , HA.max "100"
-                , HE.onInput (\i -> String.toFloat i |> Result.withDefault 50.0 |> SetImageO)
-                ] []
-            ]
-        , Html.div
-            [ HA.style [("flex-grow", "0"), ("flex-shrink", "0")] ]
-            [ Html.text "Scale:"
-            , Html.input
-                [ HA.type_ "range"
-                , HA.min "10"
-                , HA.max "500"
-                , HE.onInput (\i -> String.toFloat i |> Result.withDefault 1.0 |> SetImageS)
-                ] []
-            ]
-        , Html.div
-            [ HA.style [("flex-grow", "0"), ("flex-shrink", "0")] ]
-            [ Html.button
-                [ HE.onClick (SetLocked (not model.locked)) ]
-                [ Html.text (if model.locked then "mouse interaction" else "mouse panning") ] ]
-        , Html.div
-            [ HA.style
-                [ ("position", "relative")
-                , ("overflow", "hidden")
-                , ("width", "100%")
-                , ("flex-grow", "1")
-                , ("flex-shrink", "1")
+            [ c.class [Headings] ]
+            [ Html.div
+                [ c.class [HeadingControl] ]
+                [ Html.text "Image Opacity:"
+                , Html.input
+                    [ HA.type_ "range"
+                    , HA.min "0"
+                    , HA.max "100"
+                    , HE.onInput (\i -> String.toFloat i |> Result.withDefault 50.0 |> SetImageO)
+                    ] []
+                ]
+            , Html.div
+                [ c.class [HeadingControl] ]
+                [ Html.text "Scale:"
+                , Html.input
+                    [ HA.type_ "range"
+                    , HA.min "10"
+                    , HA.max "500"
+                    , HE.onInput (\i -> String.toFloat i |> Result.withDefault 1.0 |> SetImageS)
+                    ] []
+                ]
+            , Html.div
+                [ c.class [HeadingControl] ]
+                [ Html.button
+                    [ c.class [HeadingButton], HE.onClick (SetLocked (not model.locked)) ]
+                    [ Html.text (if model.locked then "☝ mouse interaction" else "⤧ mouse panning") ]
                 ]
             ]
+        , Html.div
+            [ c.class [ViewContainer] ]
             [ Html.div
                 [ HA.style
                     [ ("position", "relative")
@@ -184,12 +243,7 @@ viewPreview model =
                 ]
                 ((if not model.locked then
                     [ Html.div
-                        [ HA.style
-                            [ ("position", "absolute")
-                            , ("width", "100%")
-                            , ("height", "100%")
-                            , ("z-index", "4")
-                            ]
+                        [ c.class [MouseCover]
                         , HE.onWithOptions "mousedown" preventDef (JD.succeed MouseDown)
                         ] []
                     ]

@@ -45,6 +45,7 @@ type CssClasses
     | ListContainer
     | PreviewContainer
     | ImageDataRow
+    | Explanation
 
 css : Stylesheet
 css = (stylesheet << namespace "images")
@@ -115,6 +116,16 @@ css = (stylesheet << namespace "images")
         , height (vmin 10)
         , alignItems center
         , justifyContent center
+        ]
+    , class Explanation
+        [ displayFlex
+        , flexDirection column
+        , width (pct 100)
+        , alignItems center
+        , justifyContent center
+        , fontSize (vmin 3)
+        , fontWeight (int 600)
+        , padding (vmin 1)
         ]
     ]
 
@@ -230,7 +241,8 @@ viewImages model =
         Nothing ->
             Html.div
                 [ c.class [Container] ]
-                [ Html.input
+                [ Html.p [ c.class [Explanation] ] [Html.text "Load images to overlay on your html"]
+                , Html.input
                     [ c.class [LoadButton], HA.id "file-input", HA.type_ "file", HE.on "change" (JD.succeed ImageSelected) ]
                     []
                 , Html.div

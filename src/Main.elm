@@ -107,6 +107,7 @@ css = (stylesheet << namespace "lightbox")
         , flexDirection column
         , flexGrow (num 0)
         , flexShrink (num 0)
+        , minWidth (vmin 30)
         ]
     , class Window
         [ width (pct 100)
@@ -121,7 +122,6 @@ css = (stylesheet << namespace "lightbox")
         ]
     , class WindowTabCntr
         [ width (pct 100)
-        , height (vmin 7)
         , displayFlex
         , flexDirection row
         , flexGrow (num 0)
@@ -131,6 +131,10 @@ css = (stylesheet << namespace "lightbox")
         , alignItems center
         , boxShadow5 (px 0) (px 5) (px 5) (px 0) (rgba 50 50 50 0.37)
         , zIndex (int 3)
+        , padding (vmin 1)
+        , paddingLeft (px 0)
+        , flexWrap wrap
+        , overflow hidden
         ]
     , class WindowTab
         [ height (vmin 6)
@@ -490,6 +494,7 @@ view model =
             [ div [ c.class [Fill, SelView] ] [ Preview.view model |> Html.map PreviewMsg ] ]
         , Html.node "style" [] [ Html.text cssdata ]
         , Html.node "style" [] [ Html.text Images.cssdata ]
+        , Html.node "style" [] [ Html.text Preview.cssdata ]
         ]
 
 main : Program Flags Model Msg
