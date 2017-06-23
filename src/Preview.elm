@@ -191,7 +191,7 @@ viewPreview : PreviewModel -> Html Msg
 viewPreview model =
     let (offx, offy) = newImageAt model in
     let transform =
-        "translate(-50%,-50%) scale(" ++ (toString model.imageScale) ++ ") translate(" ++ (toString (offx / model.imageScale)) ++ "px, " ++ (toString (offy / model.imageScale)) ++ "px)"
+        "translate(-50%,-50%) scale(" ++ (toString model.imageScale) ++ ") translate(50%,50%) translate(" ++ (toString (offx / model.imageScale)) ++ "px, " ++ (toString (offy / model.imageScale)) ++ "px)"
     in
     let defOptions = HE.defaultOptions in
     let preventDef = { defOptions | preventDefault = not model.locked, stopPropagation = not model.locked } in
@@ -231,8 +231,6 @@ viewPreview model =
             [ Html.div
                 [ HA.style
                     [ ("position", "relative")
-                    , ("left", "50%")
-                    , ("top", "50%")
                     , ("transform", transform)
                     , ("width", (toString model.useImage.size.width) ++ "px")
                     , ("height", (toString model.useImage.size.height) ++ "px")
