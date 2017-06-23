@@ -88,6 +88,9 @@ type CssClasses
     | SelView
     | SelTab
     | FillText
+    | FilePart
+    | SaveButton
+    | LoadButton
 
 css : Stylesheet
 css = (stylesheet << namespace "lightbox")
@@ -115,29 +118,35 @@ css = (stylesheet << namespace "lightbox")
         , displayFlex
         , flexGrow (num 1)
         , flexShrink (num 0)
-        , borderTop3 (px 1) solid (rgb 0 0 0)
         ]
     , class WindowTabCntr
         [ width (pct 100)
-        , height (vmin 6)
+        , height (vmin 7)
         , displayFlex
         , flexDirection row
         , flexGrow (num 0)
         , flexShrink (num 0)
         , boxSizing borderBox
         , backgroundColor (rgb 255 255 255)
+        , alignItems center
+        , boxShadow5 (px 0) (px 5) (px 5) (px 0) (rgba 50 50 50 0.37)
+        , zIndex (int 3)
         ]
     , class WindowTab
         [ height (vmin 6)
         , marginLeft (vmin 2)
         , fontFamily sansSerif
-        , fontSize (vmin 5)
+        , fontSize (vmin 3)
         , displayFlex
         , flexDirection row
         , backgroundColor (rgb 255 255 255)
         , alignItems center
         , justifyContent center
         , cursor pointer
+        , paddingLeft (vmin 1)
+        , paddingRight (vmin 1)
+        , borderRadius (vmin 1)
+        , backgroundColor (rgb 221 221 221)
         ]
     , class SelTab
         [ backgroundColor (rgb 192 192 192)
@@ -178,6 +187,33 @@ css = (stylesheet << namespace "lightbox")
         , boxSizing borderBox
         , border2 (px 2) inset
         , margin (px 0)
+        ]
+    , class FilePart
+        [ margin (vmin 1)
+        , padding (vmin 2)
+        , boxShadow5 (px 0) (px 5) (px 5) (px 0) (rgba 50 50 50 0.37)
+        ]
+    , class SaveButton
+        [ width (pct 100)
+        , height (vmin 5)
+        , margin (vmin 1)
+        , marginLeft (px 0)
+        , boxSizing borderBox
+        , borderRadius (vmin 1)
+        , backgroundColor (rgb 192 192 192)
+        , boxShadow5 (px 0) (px 5) (px 5) (px 0) (rgba 50 50 50 0.37)
+        , border (px 0)
+        ]
+    , class LoadButton
+        [ width (pct 100)
+        , height (vmin 5)
+        , margin (vmin 1)
+        , marginLeft (px 0)
+        , boxSizing borderBox
+        , borderRadius (vmin 1)
+        , backgroundColor (rgb 192 192 192)
+        , boxShadow5 (px 0) (px 5) (px 5) (px 0) (rgba 50 50 50 0.37)
+        , border (px 0)
         ]
     ]
 
@@ -417,13 +453,16 @@ view model =
             , div [ c.class [WindowView] ]
                 [ div [ addIfSelected File [SelView] [Fill] ]
                     [ Html.div
-                        []
-                        [ Html.text "Load"
+                        [ c.class [FilePart] ]
+                        [ Html.text "Load a previously saved session"
                         , Html.input
-                            [ HA.id "load-input", HA.type_ "file", Html.Events.on "change" (JD.succeed LoadFile) ]
+                            [ c.class [LoadButton], HA.id "load-input", HA.type_ "file", Html.Events.on "change" (JD.succeed LoadFile) ]
                             []
                         ]
-                    , Html.button [ Html.Events.onClick OutputSaveData ] [ Html.text "Save" ]
+                    , Html.div
+                        [ c.class [FilePart] ]
+                        [ Html.text "Save as json to reload later"
+                        , Html.button [ c.class [SaveButton], Html.Events.onClick OutputSaveData ] [ Html.text "Save" ] ]
                     ]
                 , div [ addIfSelected Image [SelView] [Fill] ] [ Images.view model |> Html.map ImagesMsg ]
                 , div [ addIfSelected Layout [SelView] [Fill] ]
