@@ -6,4 +6,4 @@ Good for those of us who need an extra boost when perfect alighment is required.
 
 ![screenshot](https://raw.githubusercontent.com/prozacchiwawa/elm-lightbox/master/img/lb-screenshot.png)
 
-Try it out at http://superheterodyne.net/lightbox/
+Try it out at https://superheterodyne.net/lightbox/
